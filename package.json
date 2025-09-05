@@ -28,6 +28,12 @@
         "title": "Show Logs",
         "icon": "$(output)"
       }
+      ,
+      {
+        "command": "ai-quick-launch.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      }
     ],
     "viewsContainers": {
       "activitybar": [
@@ -57,6 +63,11 @@
         },
         {
           "command": "ai-quick-launch.showLogs",
+          "when": "view == aiQuickLaunchView",
+          "group": "navigation"
+        },
+        {
+          "command": "ai-quick-launch.refresh",
           "when": "view == aiQuickLaunchView",
           "group": "navigation"
         }

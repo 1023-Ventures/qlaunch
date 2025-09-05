@@ -118,7 +118,7 @@ const WorkspaceInfoPanel: React.FC = () => {
 
             // Request workspace info and watch patterns
             requestWorkspaceInfo();
-            requestWatchPatterns();
+            // requestWatchPatterns();
         } else {
             console.error("VS Code API not available");
             setLoading(false);
