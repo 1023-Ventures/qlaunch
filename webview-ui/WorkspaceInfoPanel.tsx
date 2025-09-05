@@ -1,37 +1,29 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import DemoFileTypeButton from './DemoFileTypeButton';
+import React, { useState, useEffect, useCallback } from "react";
+import DemoFileTypeButton from "./DemoFileTypeButton";
+import { WorkspaceInfo } from "./types/WorkspaceInfo";
+import { QuickLaunchList } from "./QuickLaunchList";
 
-interface WorkspaceFolder {
+export interface WorkspaceFolder {
     name: string;
     uri: string;
     scheme: string;
 }
 
-interface ActiveFile {
+export interface ActiveFile {
     fileName: string;
     languageId: string;
     isUntitled: boolean;
     isDirty: boolean;
 }
 
-interface Extension {
+export interface Extension {
     id: string;
     displayName: string;
     version: string;
 }
 
-interface WorkspaceInfo {
-    workspaceFolders: WorkspaceFolder[];
-    activeFile: ActiveFile | null;
-    workspaceName: string;
-    extensions: Extension[];
-    timestamp: number;
-    slnFiles: string[];
-    codeWorkspaceFiles: string[];
-}
-
 interface FileSystemChange {
-    type: 'created' | 'deleted' | 'changed';
+    type: "created" | "deleted" | "changed";
     uri: string;
     pattern: string;
     timestamp: number;
@@ -57,7 +49,7 @@ const WorkspaceInfoPanel: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [watchPatterns, setWatchPatterns] = useState<string[]>([]);
     const [fileChanges, setFileChanges] = useState<FileSystemChange[]>([]);
-    const [newPattern, setNewPattern] = useState('');
+    const [newPattern, setNewPattern] = useState("");
     const [showWatcherConfig, setShowWatcherConfig] = useState(false);
 
     const addFileChange = useCallback((change: FileSystemChange) => {
@@ -65,79 +57,84 @@ const WorkspaceInfoPanel: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        console.log('React component mounted');
-        
+        console.log("React component mounted");
+
         // Listen for messages from the extension
         const messageHandler = (event: MessageEvent) => {
             const message = event.data;
-            console.log('React received message:', message);
-            
+            console.log("React received message:", message);
+
             switch (message.type) {
-                case 'workspaceInfo':
+                case "workspaceInfo":
                     setWorkspaceInfo(message.data);
                     setLoading(false);
                     break;
-                case 'watchPatterns':
+                case "watchPatterns":
                     setWatchPatterns(message.data.patterns);
                     break;
-                case 'fileSystemChange':
+                case "fileSystemChange":
                     addFileChange(message.data);
                     break;
-                case 'workspaceFoldersChange':
-                    // Refresh workspace info when folders change
-                    requestWorkspaceInfo();
+                case "workspaceFoldersChange":
+                    // Add to file changes log (workspace info will be updated by the extension)
                     addFileChange({
-                        type: 'changed',
-                        uri: 'workspace',
-                        pattern: 'workspace-folders',
-                        timestamp: message.data.timestamp
+                        type: "changed",
+                        uri: "workspace",
+                        pattern: "workspace-folders",
+                        timestamp: message.data.timestamp,
                     });
+                    // Note: Don't call requestWorkspaceInfo() here to avoid feedback loops
+                    // The extension already calls _getWorkspaceInfo() after workspace changes
                     break;
-                case 'activeEditorChange':
-                    setWorkspaceInfo(prev => prev ? {
-                        ...prev,
-                        activeFile: message.data.activeFile
-                    } : null);
+                case "activeEditorChange":
+                    setWorkspaceInfo(prev =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  activeFile: message.data.activeFile,
+                              }
+                            : null
+                    );
                     break;
-                case 'activeDocumentChange':
+                case "activeDocumentChange":
                     addFileChange({
-                        type: 'changed',
+                        type: "changed",
                         uri: message.data.fileName,
-                        pattern: 'active-document',
-                        timestamp: message.data.timestamp
+                        pattern: "active-document",
+                        timestamp: message.data.timestamp,
                     });
                     break;
             }
         };
 
-        window.addEventListener('message', messageHandler);
+        window.addEventListener("message", messageHandler);
 
         // Let the extension know the webview is ready
         if (window.vscode) {
-            console.log('Sending webviewReady message');
+            console.log("Sending webviewReady message");
             window.vscode.postMessage({
-                type: 'webviewReady'
+                type: "webviewReady",
             });
 
             // Request workspace info and watch patterns
             requestWorkspaceInfo();
             requestWatchPatterns();
         } else {
-            console.error('VS Code API not available');
+            console.error("VS Code API not available");
             setLoading(false);
         }
 
         return () => {
-            window.removeEventListener('message', messageHandler);
+            window.removeEventListener("message", messageHandler);
         };
     }, [addFileChange]); // Removed workspaceInfo dependency to prevent endless loop
 
     const requestWorkspaceInfo = () => {
         if (window.vscode) {
-            console.log('Requesting workspace info from React');
+            console.log("Requesting workspace info from React");
             setLoading(true);
             window.vscode.postMessage({
-                type: 'getWorkspaceInfo'
+                type: "getWorkspaceInfo",
             });
         }
     };
@@ -145,7 +142,7 @@ const WorkspaceInfoPanel: React.FC = () => {
     const requestWatchPatterns = () => {
         if (window.vscode) {
             window.vscode.postMessage({
-                type: 'getWatchPatterns'
+                type: "getWatchPatterns",
             });
         }
     };
@@ -153,7 +150,7 @@ const WorkspaceInfoPanel: React.FC = () => {
     const switchToExplorer = () => {
         if (window.vscode) {
             window.vscode.postMessage({
-                type: 'switchToExplorer'
+                type: "switchToExplorer",
             });
         }
     };
@@ -161,8 +158,8 @@ const WorkspaceInfoPanel: React.FC = () => {
     const updateWatchPatterns = (patterns: string[]) => {
         if (window.vscode) {
             window.vscode.postMessage({
-                type: 'updateWatchPatterns',
-                patterns
+                type: "updateWatchPatterns",
+                patterns,
             });
         }
     };
@@ -171,7 +168,7 @@ const WorkspaceInfoPanel: React.FC = () => {
         if (newPattern.trim() && !watchPatterns.includes(newPattern.trim())) {
             const updatedPatterns = [...watchPatterns, newPattern.trim()];
             updateWatchPatterns(updatedPatterns);
-            setNewPattern('');
+            setNewPattern("");
         }
     };
 
@@ -186,10 +183,14 @@ const WorkspaceInfoPanel: React.FC = () => {
 
     const getChangeIcon = (type: string) => {
         switch (type) {
-            case 'created': return '✅';
-            case 'deleted': return '❌';
-            case 'changed': return '📝';
-            default: return '📄';
+            case "created":
+                return "✅";
+            case "deleted":
+                return "❌";
+            case "changed":
+                return "📝";
+            default:
+                return "📄";
         }
     };
 
@@ -205,10 +206,7 @@ const WorkspaceInfoPanel: React.FC = () => {
         return (
             <div className="workspace-info">
                 <h2 className="text-lg font-semibold text-vscode-foreground mb-4">No workspace information available</h2>
-                <button 
-                    className="px-4 py-2 bg-vscode-button text-white rounded hover:bg-vscode-button-hover transition-colors"
-                    onClick={requestWorkspaceInfo}
-                >
+                <button className="px-4 py-2 bg-vscode-button text-white rounded hover:bg-vscode-button-hover transition-colors" onClick={requestWorkspaceInfo}>
                     Refresh
                 </button>
             </div>
@@ -217,25 +215,19 @@ const WorkspaceInfoPanel: React.FC = () => {
 
     return (
         <div className="workspace-info">
+            {/* Display quick launch buttons for workspaces, sln's, and .deploy */}
+            <QuickLaunchList workspaceInfo={workspaceInfo} />
+
             <div className="info-section">
                 <h2 className="text-xl font-bold text-vscode-foreground mb-4">Workspace: {workspaceInfo.workspaceName}</h2>
                 <div className="flex flex-wrap gap-2 mb-4">
-                    <button 
-                        className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors"
-                        onClick={requestWorkspaceInfo}
-                    >
+                    <button className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors" onClick={requestWorkspaceInfo}>
                         Refresh Info
                     </button>
-                    <button 
-                        className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors"
-                        onClick={() => setShowWatcherConfig(!showWatcherConfig)}
-                    >
-                        {showWatcherConfig ? 'Hide' : 'Show'} File Watchers
+                    <button className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors" onClick={() => setShowWatcherConfig(!showWatcherConfig)}>
+                        {showWatcherConfig ? "Hide" : "Show"} File Watchers
                     </button>
-                    <button 
-                        className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors"
-                        onClick={switchToExplorer}
-                    >
+                    <button className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors" onClick={switchToExplorer}>
                         Switch to Explorer
                     </button>
                 </div>
@@ -248,39 +240,34 @@ const WorkspaceInfoPanel: React.FC = () => {
                         <input
                             type="text"
                             value={newPattern}
-                            onChange={(e) => setNewPattern(e.target.value)}
+                            onChange={e => setNewPattern(e.target.value)}
                             placeholder="Enter file pattern (e.g., **/*.js)"
                             className="px-3 py-2 bg-vscode-input border border-vscode-border rounded text-sm flex-1 max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            onKeyPress={(e) => e.key === 'Enter' && addWatchPattern()}
+                            onKeyPress={e => e.key === "Enter" && addWatchPattern()}
                         />
-                        <button 
-                            className="px-3 py-2 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors"
-                            onClick={addWatchPattern}
-                        >
+                        <button className="px-3 py-2 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors" onClick={addWatchPattern}>
                             Add Pattern
                         </button>
                     </div>
-                    
+
                     <h4>Current Watch Patterns ({watchPatterns.length}):</h4>
                     {watchPatterns.length === 0 ? (
                         <p>No watch patterns configured</p>
                     ) : (
                         <ul>
                             {watchPatterns.map((pattern, index) => (
-                                <li key={index} className="info-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <code style={{ background: 'var(--vscode-textCodeBlock-background)', padding: '2px 6px', borderRadius: '3px' }}>
-                                        {pattern}
-                                    </code>
-                                    <button 
+                                <li key={index} className="info-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <code style={{ background: "var(--vscode-textCodeBlock-background)", padding: "2px 6px", borderRadius: "3px" }}>{pattern}</code>
+                                    <button
                                         onClick={() => removeWatchPattern(pattern)}
-                                        style={{ 
-                                            background: 'var(--vscode-errorButton-background)',
-                                            color: 'var(--vscode-errorButton-foreground)',
-                                            border: 'none',
-                                            padding: '2px 8px',
-                                            borderRadius: '3px',
-                                            cursor: 'pointer',
-                                            fontSize: '12px'
+                                        style={{
+                                            background: "var(--vscode-errorButton-background)",
+                                            color: "var(--vscode-errorButton-foreground)",
+                                            border: "none",
+                                            padding: "2px 8px",
+                                            borderRadius: "3px",
+                                            cursor: "pointer",
+                                            fontSize: "12px",
                                         }}
                                     >
                                         Remove
@@ -293,8 +280,8 @@ const WorkspaceInfoPanel: React.FC = () => {
             )}
 
             <div>
-                <DemoFileTypeButton/>
-                <div className='bg-amber-200'>Workspace Info ----------</div>
+                <DemoFileTypeButton />
+                <div className="bg-amber-200">Workspace Info ----------</div>
                 {workspaceInfo.slnFiles.map(file => (
                     <div key={file} className="info-item">
                         <div className="info-label">SLN File:</div>
@@ -303,8 +290,14 @@ const WorkspaceInfoPanel: React.FC = () => {
                 ))}
                 {workspaceInfo.codeWorkspaceFiles.map(file => (
                     <div key={file} className="info-item">
-                        <div className="info-label">Code Workspace File:</div>      
+                        <div className="info-label">Code Workspace File:</div>
                         <div className="info-value">{file}</div>
+                    </div>
+                ))}
+                {workspaceInfo.deployFolders.map(folder => (
+                    <div key={folder} className="info-item">
+                        <div className="info-label">Deploy Folder:</div>
+                        <div className="info-value">{folder}</div>
                     </div>
                 ))}
                 <div className="info-item">
@@ -318,22 +311,18 @@ const WorkspaceInfoPanel: React.FC = () => {
                 {fileChanges.length === 0 ? (
                     <p>No recent file changes</p>
                 ) : (
-                    <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                    <div style={{ maxHeight: "200px", overflow: "auto" }}>
                         {fileChanges.map((change, index) => (
-                            <div key={index} className="info-item" style={{ fontSize: '12px', marginBottom: '5px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div key={index} className="info-item" style={{ fontSize: "12px", marginBottom: "5px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                     <span>{getChangeIcon(change.type)}</span>
                                     <span className="info-label">{change.type.toUpperCase()}</span>
-                                    <span style={{ color: 'var(--vscode-descriptionForeground)' }}>
-                                        {formatTimestamp(change.timestamp)}
-                                    </span>
+                                    <span style={{ color: "var(--vscode-descriptionForeground)" }}>{formatTimestamp(change.timestamp)}</span>
                                 </div>
-                                <div className="info-value" style={{ fontSize: '11px', marginLeft: '24px' }}>
-                                    {change.uri.length > 60 ? '...' + change.uri.slice(-60) : change.uri}
+                                <div className="info-value" style={{ fontSize: "11px", marginLeft: "24px" }}>
+                                    {change.uri.length > 60 ? "..." + change.uri.slice(-60) : change.uri}
                                 </div>
-                                <div style={{ fontSize: '10px', color: 'var(--vscode-descriptionForeground)', marginLeft: '24px' }}>
-                                    Pattern: {change.pattern}
-                                </div>
+                                <div style={{ fontSize: "10px", color: "var(--vscode-descriptionForeground)", marginLeft: "24px" }}>Pattern: {change.pattern}</div>
                             </div>
                         ))}
                     </div>
@@ -367,8 +356,8 @@ const WorkspaceInfoPanel: React.FC = () => {
                         <div className="info-value">{workspaceInfo.activeFile.languageId}</div>
                         <div className="info-label">Status:</div>
                         <div className="info-value">
-                            {workspaceInfo.activeFile.isUntitled ? 'Untitled' : 'Saved'}
-                            {workspaceInfo.activeFile.isDirty ? ' (Modified)' : ''}
+                            {workspaceInfo.activeFile.isUntitled ? "Untitled" : "Saved"}
+                            {workspaceInfo.activeFile.isDirty ? " (Modified)" : ""}
                         </div>
                     </div>
                 ) : (
@@ -378,16 +367,14 @@ const WorkspaceInfoPanel: React.FC = () => {
 
             <div className="info-section">
                 <h3>Active Extensions ({workspaceInfo.extensions.length})</h3>
-                <div style={{ maxHeight: '150px', overflow: 'auto' }}>
+                <div style={{ maxHeight: "150px", overflow: "auto" }}>
                     {workspaceInfo.extensions.slice(0, 5).map((ext, index) => (
                         <div key={index} className="info-item">
                             <div className="info-label">{ext.displayName}</div>
                             <div className="info-value">v{ext.version}</div>
                         </div>
                     ))}
-                    {workspaceInfo.extensions.length > 5 && (
-                        <p>... and {workspaceInfo.extensions.length - 5} more extensions</p>
-                    )}
+                    {workspaceInfo.extensions.length > 5 && <p>... and {workspaceInfo.extensions.length - 5} more extensions</p>}
                 </div>
             </div>
         </div>

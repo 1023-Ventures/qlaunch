@@ -46,3 +46,8 @@ body {
 .info-value {
   @apply text-sm font-mono;
 }
+
+.dbg {
+  /* @apply text-xs text-gray-500; */
+  border: 1px dotted red;
+}

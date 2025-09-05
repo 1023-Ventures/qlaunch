@@ -14,6 +14,12 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
         "**/.env*",
         "**/README*",
     ];
+    
+    // Throttling properties to prevent excessive event firing
+    private _documentChangeTimeout: NodeJS.Timeout | undefined;
+    private _lastDocumentChangeTime = 0;
+    private _isProcessingDocumentChange = false;
+    private readonly DOCUMENT_CHANGE_THROTTLE_MS = 500; // 500ms throttle
 
     constructor(private readonly _extensionUri: vscode.Uri) {
         this._setupFileWatchers();
@@ -55,7 +61,10 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
 
         // Watch for text document changes
         vscode.workspace.onDidChangeTextDocument(event => {
-            if (vscode.window.activeTextEditor?.document === event.document) {
+            // Only process if it's the active document and has meaningful changes
+            if (vscode.window.activeTextEditor?.document === event.document && 
+                event.contentChanges.length > 0 && 
+                event.contentChanges.some(change => change.text.length > 0 || change.rangeLength > 0)) {
                 this._onActiveDocumentChange(event);
             }
         });
@@ -124,6 +133,35 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
     }
 
     private _onActiveDocumentChange(event: vscode.TextDocumentChangeEvent) {
+        const now = Date.now();
+        
+        // Skip if we're already processing a change
+        if (this._isProcessingDocumentChange) {
+            return;
+        }
+        
+        // Clear any existing timeout
+        if (this._documentChangeTimeout) {
+            clearTimeout(this._documentChangeTimeout);
+        }
+        
+        // Throttle rapid changes - only process if enough time has passed since last change
+        if (now - this._lastDocumentChangeTime < this.DOCUMENT_CHANGE_THROTTLE_MS) {
+            // Debounce: schedule to fire later if changes keep coming
+            this._documentChangeTimeout = setTimeout(() => {
+                this._sendDocumentChangeMessage(event);
+            }, this.DOCUMENT_CHANGE_THROTTLE_MS);
+            return;
+        }
+        
+        // Fire immediately if enough time has passed
+        this._lastDocumentChangeTime = now;
+        this._sendDocumentChangeMessage(event);
+    }
+    
+    private _sendDocumentChangeMessage(event: vscode.TextDocumentChangeEvent) {
+        this._isProcessingDocumentChange = true;
+        
         logger.debug(`Active document changed: ${event.document.fileName} (${event.contentChanges.length} changes)`);
 
         if (this._view) {
@@ -137,6 +175,11 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
                 },
             });
         }
+        
+        // Reset processing flag after a short delay
+        setTimeout(() => {
+            this._isProcessingDocumentChange = false;
+        }, 50);
     }
 
     private _updateWatchPatterns(patterns: string[]) {
@@ -191,6 +234,11 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
                 case "switchToExplorer":
                     this._switchToExplorer();
                     break;
+                case "openWithOS":
+                    if (data.filePath) {
+                        this._openWithOS(data.filePath, data.openMethod || 'default');
+                    }
+                    break;
             }
         });
 
@@ -224,10 +272,108 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
         vscode.commands.executeCommand("workbench.view.explorer");
     }
 
+    private async _openWithOS(filePath: string, openMethod: string = 'default') {
+        try {
+            logger.info(`Opening file: ${filePath} with method: ${openMethod}`);
+            
+            // Convert the file path to a URI
+            const fileUri = vscode.Uri.file(filePath);
+            
+            switch (openMethod) {
+                case 'default':
+                    // Open with the operating system's default application
+                    await vscode.env.openExternal(fileUri);
+                    logger.debug(`Successfully opened ${filePath} with OS default application`);
+                    break;
+                    
+                case 'vscode':
+                    // Open in VS Code
+                    await vscode.window.showTextDocument(fileUri);
+                    logger.debug(`Successfully opened ${filePath} in VS Code`);
+                    break;
+                    
+                case 'explorer':
+                case 'folder':
+                    // Open containing folder
+                    const folderUri = vscode.Uri.file(require('path').dirname(filePath));
+                    await vscode.env.openExternal(folderUri);
+                    logger.debug(`Successfully opened folder containing ${filePath}`);
+                    break;
+                    
+                default:
+                    // Default to OS default application
+                    await vscode.env.openExternal(fileUri);
+                    logger.debug(`Successfully opened ${filePath} with OS default application (fallback)`);
+            }
+            
+        } catch (error) {
+            logger.error(`Failed to open file: ${filePath} with method: ${openMethod}`, error);
+            
+            // Show error message to user
+            vscode.window.showErrorMessage(
+                `Failed to open file with ${openMethod} method: ${filePath}. ${error instanceof Error ? error.message : 'Unknown error'}`
+            );
+        }
+    }
+
     public dispose() {
         logger.info(`Disposing WorkspaceInfoProvider - cleaning up ${this._watchers.length} file watchers`);
+        
+        // Clean up file watchers
         this._watchers.forEach(watcher => watcher.dispose());
         this._watchers = [];
+        
+        // Clean up document change timeout and reset flags
+        if (this._documentChangeTimeout) {
+            clearTimeout(this._documentChangeTimeout);
+            this._documentChangeTimeout = undefined;
+        }
+        this._isProcessingDocumentChange = false;
+    }
+
+    private async _findDeployFolders(): Promise<string[]> {
+        const deployFolders: string[] = [];
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        
+        if (!workspaceFolders) {
+            return deployFolders;
+        }
+
+        for (const workspaceFolder of workspaceFolders) {
+            try {
+                // Use VS Code's file system API to find .deploy folders
+                const files = await vscode.workspace.fs.readDirectory(workspaceFolder.uri);
+                
+                for (const [name, type] of files) {
+                    if (name === '.deploy' && type === vscode.FileType.Directory) {
+                        const deployPath = vscode.Uri.joinPath(workspaceFolder.uri, name);
+                        deployFolders.push(deployPath.fsPath);
+                    }
+                }
+                
+                // Also search recursively for .deploy folders in subdirectories
+                const pattern = new vscode.RelativePattern(workspaceFolder, '**/.deploy');
+                const foundFiles = await vscode.workspace.findFiles(pattern);
+                
+                // Filter to only directories (findFiles can return both files and directories)
+                for (const file of foundFiles) {
+                    try {
+                        const stat = await vscode.workspace.fs.stat(file);
+                        if (stat.type === vscode.FileType.Directory) {
+                            deployFolders.push(file.fsPath);
+                        }
+                    } catch (error) {
+                        // Ignore errors for individual files
+                        logger.debug(`Could not stat file ${file.fsPath}: ${error}`);
+                    }
+                }
+            } catch (error) {
+                logger.warn(`Error searching for .deploy folders in ${workspaceFolder.uri.fsPath}: ${error}`);
+            }
+        }
+        
+        // Remove duplicates
+        return [...new Set(deployFolders)];
     }
 
     private _getWorkspaceInfo() {
@@ -257,7 +403,10 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
                       isDirty: activeEditor.document.isDirty,
                   }
                 : null,
+
             workspaceName: vscode.workspace.name || "No workspace",
+            workspaceFile: vscode.workspace.workspaceFile ? vscode.workspace.workspaceFile.fsPath : null,
+            
             extensions: vscode.extensions.all
                 .filter(ext => ext.isActive)
                 .map(ext => ({
@@ -269,16 +418,19 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
 
         vscode.workspace.findFiles("**/*.sln").then(slnResults => {
             vscode.workspace.findFiles("**/*.code-workspace").then(wsResults => {
-                logger.debug(`Sending workspace info to webview: ${workspaceInfo.workspaceFolders.length} folders, ${workspaceInfo.extensions.length} active extensions`);
+                this._findDeployFolders().then(deployFolders => {
+                    logger.debug(`Sending workspace info to webview: ${workspaceInfo.workspaceFolders.length} folders, ${workspaceInfo.extensions.length} active extensions, ${deployFolders.length} deploy folders`);
 
-                this._view && this._view.webview.postMessage({
-                    type: "workspaceInfo",
-                    data: {
-                        ...workspaceInfo,
-                        slnFiles: slnResults.map(uri => uri.fsPath),
-                        codeWorkspaceFiles: wsResults.map(uri => uri.fsPath),
-                        timestamp: Date.now(),
-                    },
+                    this._view && this._view.webview.postMessage({
+                        type: "workspaceInfo",
+                        data: {
+                            ...workspaceInfo,
+                            slnFiles: slnResults.map(uri => uri.fsPath),
+                            codeWorkspaceFiles: wsResults.map(uri => uri.fsPath),
+                            deployFolders: deployFolders,
+                            timestamp: Date.now(),
+                        },
+                    });
                 });
             });
         });
