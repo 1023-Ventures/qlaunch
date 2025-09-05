@@ -196,7 +196,7 @@ const WorkspaceInfoPanel: React.FC = () => {
     if (loading) {
         return (
             <div className="workspace-info">
-                <h2>Loading workspace information...</h2>
+                <h2 className="text-lg font-semibold text-vscode-foreground">Loading workspace information...</h2>
             </div>
         );
     }
@@ -204,8 +204,13 @@ const WorkspaceInfoPanel: React.FC = () => {
     if (!workspaceInfo) {
         return (
             <div className="workspace-info">
-                <h2>No workspace information available</h2>
-                <button onClick={requestWorkspaceInfo}>Refresh</button>
+                <h2 className="text-lg font-semibold text-vscode-foreground mb-4">No workspace information available</h2>
+                <button 
+                    className="px-4 py-2 bg-vscode-button text-white rounded hover:bg-vscode-button-hover transition-colors"
+                    onClick={requestWorkspaceInfo}
+                >
+                    Refresh
+                </button>
             </div>
         );
     }
@@ -213,43 +218,47 @@ const WorkspaceInfoPanel: React.FC = () => {
     return (
         <div className="workspace-info">
             <div className="info-section">
-                <h2>Workspace: {workspaceInfo.workspaceName}</h2>
-                <button onClick={requestWorkspaceInfo}>Refresh Info</button>
-                <button 
-                    onClick={() => setShowWatcherConfig(!showWatcherConfig)}
-                    style={{ marginLeft: '10px' }}
-                >
-                    {showWatcherConfig ? 'Hide' : 'Show'} File Watchers
-                </button>
-                <button 
-                    onClick={switchToExplorer}
-                    style={{ marginLeft: '10px' }}
-                >
-                    Switch to Explorer
-                </button>
+                <h2 className="text-xl font-bold text-vscode-foreground mb-4">Workspace: {workspaceInfo.workspaceName}</h2>
+                <div className="flex flex-wrap gap-2 mb-4">
+                    <button 
+                        className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors"
+                        onClick={requestWorkspaceInfo}
+                    >
+                        Refresh Info
+                    </button>
+                    <button 
+                        className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors"
+                        onClick={() => setShowWatcherConfig(!showWatcherConfig)}
+                    >
+                        {showWatcherConfig ? 'Hide' : 'Show'} File Watchers
+                    </button>
+                    <button 
+                        className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors"
+                        onClick={switchToExplorer}
+                    >
+                        Switch to Explorer
+                    </button>
+                </div>
             </div>
 
             {showWatcherConfig && (
-                <div className="info-section">
-                    <h3>File Watcher Configuration</h3>
-                    <div style={{ marginBottom: '10px' }}>
+                <div className="info-section border-t border-vscode-border pt-4">
+                    <h3 className="text-lg font-semibold mb-3">File Watcher Configuration</h3>
+                    <div className="flex gap-2 mb-4">
                         <input
                             type="text"
                             value={newPattern}
                             onChange={(e) => setNewPattern(e.target.value)}
                             placeholder="Enter file pattern (e.g., **/*.js)"
-                            style={{
-                                padding: '5px',
-                                marginRight: '5px',
-                                background: 'var(--vscode-input-background)',
-                                color: 'var(--vscode-input-foreground)',
-                                border: '1px solid var(--vscode-input-border)',
-                                borderRadius: '3px',
-                                width: '200px'
-                            }}
+                            className="px-3 py-2 bg-vscode-input border border-vscode-border rounded text-sm flex-1 max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                             onKeyPress={(e) => e.key === 'Enter' && addWatchPattern()}
                         />
-                        <button onClick={addWatchPattern}>Add Pattern</button>
+                        <button 
+                            className="px-3 py-2 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors"
+                            onClick={addWatchPattern}
+                        >
+                            Add Pattern
+                        </button>
                     </div>
                     
                     <h4>Current Watch Patterns ({watchPatterns.length}):</h4>
@@ -285,7 +294,7 @@ const WorkspaceInfoPanel: React.FC = () => {
 
             <div>
                 <DemoFileTypeButton/>
-                <h3>Workspace Info ----------</h3>
+                <div className='bg-amber-200'>Workspace Info ----------</div>
                 {workspaceInfo.slnFiles.map(file => (
                     <div key={file} className="info-item">
                         <div className="info-label">SLN File:</div>

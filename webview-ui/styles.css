@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@source "../webview-ui/**/*.{js,ts,jsx,tsx}";
+
+@theme {
+  --color-vscode-background: var(--vscode-editor-background);
+  --color-vscode-foreground: var(--vscode-editor-foreground);
+  --color-vscode-button: var(--vscode-button-background);
+  --color-vscode-button-hover: var(--vscode-button-hoverBackground);
+  --color-vscode-input: var(--vscode-input-background);
+  --color-vscode-border: var(--vscode-widget-border);
+}
+
+/* VS Code webview styles */
+:root {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-editor-background);
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+}
+
+/* Custom component styles using Tailwind utilities */
+.workspace-info {
+  @apply space-y-6;
+}
+
+.info-section {
+  @apply space-y-2;
+}
+
+.info-item {
+  @apply space-y-1;
+}
+
+.info-label {
+  @apply text-sm font-medium opacity-80;
+}
+
+.info-value {
+  @apply text-sm font-mono;
+}

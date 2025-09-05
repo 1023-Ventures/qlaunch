@@ -289,13 +289,14 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "dist", "webview.js"));
 
         // Do the same for the stylesheet.
-
+        const styleTailwindUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "dist", "index.css"));
     const styleResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
     const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
     const styleCodiconUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "codicon.css"));
 
     logger.debug("Webview URIs generated", {
         scriptUri,
+        styleTailwindUri,
         styleResetUri,
         styleVSCodeUri,
         styleCodiconUri
@@ -310,6 +311,7 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
                 <meta charset="UTF-8">
                 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' 'unsafe-eval'; font-src ${webview.cspSource};">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="${styleTailwindUri}" rel="stylesheet">
                 <link href="${styleResetUri}" rel="stylesheet">
                 <link href="${styleVSCodeUri}" rel="stylesheet">
                 <link href="${styleCodiconUri}" rel="stylesheet">

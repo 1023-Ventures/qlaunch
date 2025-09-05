@@ -15,7 +15,10 @@ const FileTypeButton: React.FC<FileTypeButtonProps> = ({ fileType, onClick, labe
   // For now, we use the VS Code theme icon font as a fallback.
   // The extension can send a real icon URI via props or webview message for a richer experience.
   return (
-    <button onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <button 
+      onClick={onClick} 
+      className="flex items-center gap-2 px-3 py-2 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors"
+    >
       <span className={`codicon codicon-file-${fileType.toLowerCase()}`} style={{ fontSize: 20 }} />
       {label && <span>{label}</span>}
     </button>
