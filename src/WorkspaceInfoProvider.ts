@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { getNonce } from "./utilities/getNonce";
 import { logger } from "./utilities/logger";
+import { log } from "console";
 
 export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = "aiQuickLaunchView";
@@ -288,9 +289,18 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "dist", "webview.js"));
 
         // Do the same for the stylesheet.
-        const styleResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
-        const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
 
+    const styleResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
+    const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
+    const styleCodiconUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "codicon.css"));
+
+    logger.debug("Webview URIs generated", {
+        scriptUri,
+        styleResetUri,
+        styleVSCodeUri,
+        styleCodiconUri
+    });
+    
         // Use a nonce to only allow specific scripts to be run
         const nonce = getNonce();
 
@@ -302,6 +312,7 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <link href="${styleResetUri}" rel="stylesheet">
                 <link href="${styleVSCodeUri}" rel="stylesheet">
+                <link href="${styleCodiconUri}" rel="stylesheet">
                 <title>Workspace Info</title>
             </head>
             <body>

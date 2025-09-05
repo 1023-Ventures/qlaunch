@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import DemoFileTypeButton from './DemoFileTypeButton';
 
 interface WorkspaceFolder {
     name: string;
@@ -283,6 +284,7 @@ const WorkspaceInfoPanel: React.FC = () => {
             )}
 
             <div>
+                <DemoFileTypeButton/>
                 <h3>Workspace Info</h3>
                 {workspaceInfo.slnFiles.map(file => (
                     <div key={file} className="info-item">

@@ -1,0 +1,23 @@
+/* Codicon font-face and base styles for VS Code webview UI. */
+@font-face {
+  font-family: 'codicon';
+  src: url('codicon.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.codicon {
+  font: normal normal normal 20px/1 codicon;
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+  /* Support for color */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Example: fallback for file icons */
+.codicon-file-pdf:before { content: "\ea60"; } /* pdf icon */
+.codicon-file-js:before { content: '\ebae'; } /* js icon */
+.codicon-file-txt:before { content: '\ea7b'; } /* txt icon */
+/* Add more as needed */
