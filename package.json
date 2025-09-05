@@ -1,0 +1,98 @@
+{
+  "name": "ai-quick-launch",
+  "displayName": "AI Quick Launch",
+  "description": "A VS Code extension for quick AI-powered launches",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.103.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ai-quick-launch.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "ai-quick-launch.openWorkspaceInfo",
+        "title": "Open Workspace Info",
+        "icon": "$(info)"
+      },
+      {
+        "command": "ai-quick-launch.showLogs",
+        "title": "Show Logs",
+        "icon": "$(output)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aiQuickLaunch",
+          "title": "AI Quick Launch",
+          "icon": "$(rocket)"
+        }
+      ]
+    },
+    "views": {
+      "aiQuickLaunch": [
+        {
+          "id": "aiQuickLaunchView",
+          "name": "Workspace Info",
+          "when": "true",
+          "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "ai-quick-launch.openWorkspaceInfo",
+          "when": "view == aiQuickLaunchView",
+          "group": "navigation"
+        },
+        {
+          "command": "ai-quick-launch.showLogs",
+          "when": "view == aiQuickLaunchView",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.103.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "buffer": "^6.0.3",
+    "eslint": "^9.32.0",
+    "process": "^0.11.10",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.9.2",
+    "webpack": "^5.101.0",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  }
+}

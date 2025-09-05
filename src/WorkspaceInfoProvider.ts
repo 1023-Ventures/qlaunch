@@ -1,0 +1,376 @@
+import * as vscode from "vscode";
+import { getNonce } from "./utilities/getNonce";
+import { logger } from "./utilities/logger";
+
+export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
+    public static readonly viewType = "aiQuickLaunchView";
+
+    private _view?: vscode.WebviewView;
+    private _watchers: vscode.FileSystemWatcher[] = [];
+    private _watchedPatterns: string[] = [
+        "**/*.{js,ts,jsx,tsx,json,md}", // Default patterns
+        "**/package.json",
+        "**/.env*",
+        "**/README*",
+    ];
+
+    constructor(private readonly _extensionUri: vscode.Uri) {
+        this._setupFileWatchers();
+        this._setupWorkspaceWatchers();
+    }
+
+    private _setupFileWatchers() {
+        // Clean up existing watchers
+        this._watchers.forEach(watcher => watcher.dispose());
+        this._watchers = [];
+
+        logger.info(`Setting up file watchers for ${this._watchedPatterns.length} patterns`);
+
+        // Create watchers for each pattern
+        this._watchedPatterns.forEach(pattern => {
+            const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+
+            // Watch for file creation, deletion, and changes
+            watcher.onDidCreate(uri => this._onFileSystemChange("created", uri, pattern));
+            watcher.onDidDelete(uri => this._onFileSystemChange("deleted", uri, pattern));
+            watcher.onDidChange(uri => this._onFileSystemChange("changed", uri, pattern));
+
+            this._watchers.push(watcher);
+        });
+
+        logger.debug(`File watchers setup complete - watching patterns: ${this._watchedPatterns.join(", ")}`);
+    }
+
+    private _setupWorkspaceWatchers() {
+        // Watch for workspace folder changes
+        vscode.workspace.onDidChangeWorkspaceFolders(event => {
+            this._onWorkspaceFoldersChange(event);
+        });
+
+        // Watch for active editor changes
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            this._onActiveEditorChange(editor);
+        });
+
+        // Watch for text document changes
+        vscode.workspace.onDidChangeTextDocument(event => {
+            if (vscode.window.activeTextEditor?.document === event.document) {
+                this._onActiveDocumentChange(event);
+            }
+        });
+    }
+
+    private _onFileSystemChange(type: "created" | "deleted" | "changed", uri: vscode.Uri, pattern: string) {
+        logger.debug(`File system change detected: ${type} - ${uri.fsPath} (pattern: ${pattern})`);
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: "fileSystemChange",
+                data: {
+                    type,
+                    uri: uri.fsPath,
+                    pattern,
+                    timestamp: Date.now(),
+                },
+            });
+        }
+    }
+
+    private _onWorkspaceFoldersChange(event: vscode.WorkspaceFoldersChangeEvent) {
+        logger.info(`Workspace folders changed - Added: ${event.added.length}, Removed: ${event.removed.length}`);
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: "workspaceFoldersChange",
+                data: {
+                    added: event.added.map(folder => ({
+                        name: folder.name,
+                        uri: folder.uri.fsPath,
+                        scheme: folder.uri.scheme,
+                    })),
+                    removed: event.removed.map(folder => ({
+                        name: folder.name,
+                        uri: folder.uri.fsPath,
+                        scheme: folder.uri.scheme,
+                    })),
+                    timestamp: Date.now(),
+                },
+            });
+
+            // Refresh workspace info
+            this._getWorkspaceInfo();
+        }
+    }
+
+    private _onActiveEditorChange(editor: vscode.TextEditor | undefined) {
+        const fileName = editor ? editor.document.fileName : "none";
+        logger.debug(`Active editor changed to: ${fileName}`);
+
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: "activeEditorChange",
+                data: {
+                    activeFile: editor
+                        ? {
+                              fileName: editor.document.fileName,
+                              languageId: editor.document.languageId,
+                              isUntitled: editor.document.isUntitled,
+                              isDirty: editor.document.isDirty,
+                          }
+                        : null,
+                    timestamp: Date.now(),
+                },
+            });
+        }
+    }
+
+    private _onActiveDocumentChange(event: vscode.TextDocumentChangeEvent) {
+        logger.debug(`Active document changed: ${event.document.fileName} (${event.contentChanges.length} changes)`);
+
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: "activeDocumentChange",
+                data: {
+                    fileName: event.document.fileName,
+                    isDirty: event.document.isDirty,
+                    changeCount: event.contentChanges.length,
+                    timestamp: Date.now(),
+                },
+            });
+        }
+    }
+
+    private _updateWatchPatterns(patterns: string[]) {
+        logger.info(`Updating watch patterns to: ${patterns.join(", ")}`);
+        this._watchedPatterns = patterns;
+        this._setupFileWatchers();
+
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: "watchPatternsUpdated",
+                data: {
+                    patterns: this._watchedPatterns,
+                    timestamp: Date.now(),
+                },
+            });
+        }
+    }
+
+    public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
+        logger.info("Resolving webview view for workspace info");
+        this._view = webviewView;
+
+        webviewView.webview.options = {
+            // Allow scripts in the webview
+            enableScripts: true,
+            localResourceRoots: [this._extensionUri],
+        };
+
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        logger.debug("Webview HTML loaded and options configured");
+
+        // Listen for messages from the webview
+        webviewView.webview.onDidReceiveMessage(data => {
+            logger.debug(`Received message from webview: ${data.type}`);
+            switch (data.type) {
+                case "getWorkspaceInfo":
+                    this._getWorkspaceInfo();
+                    break;
+                case "webviewReady":
+                    // Automatically send workspace info when webview is ready
+                    this._getWorkspaceInfo();
+                    this._sendWatchPatterns();
+                    break;
+                case "updateWatchPatterns":
+                    if (data.patterns && Array.isArray(data.patterns)) {
+                        this._updateWatchPatterns(data.patterns);
+                    }
+                    break;
+                case "getWatchPatterns":
+                    this._sendWatchPatterns();
+                    break;
+                case "switchToExplorer":
+                    this._switchToExplorer();
+                    break;
+            }
+        });
+
+        // Also send workspace info immediately when view becomes visible
+        webviewView.onDidChangeVisibility(() => {
+            if (webviewView.visible) {
+                logger.debug("Webview became visible, refreshing workspace info");
+                this._getWorkspaceInfo();
+            }
+        });
+    }
+
+    private _sendWatchPatterns() {
+        if (this._view) {
+            logger.debug(`Sending watch patterns to webview: ${this._watchedPatterns.length} patterns, ${this._watchers.length} watchers`);
+            this._view.webview.postMessage({
+                type: "watchPatterns",
+                data: {
+                    patterns: this._watchedPatterns,
+                    watcherCount: this._watchers.length,
+                    timestamp: Date.now(),
+                },
+            });
+        } else {
+            logger.warn("Cannot send watch patterns - webview not available");
+        }
+    }
+
+    private _switchToExplorer() {
+        logger.info("Switching to VS Code explorer view");
+        vscode.commands.executeCommand("workbench.view.explorer");
+    }
+
+    public dispose() {
+        logger.info(`Disposing WorkspaceInfoProvider - cleaning up ${this._watchers.length} file watchers`);
+        this._watchers.forEach(watcher => watcher.dispose());
+        this._watchers = [];
+    }
+
+    private _getWorkspaceInfo() {
+        if (!this._view) {
+            logger.warn("Cannot get workspace info - webview not available");
+            return;
+        }
+
+        logger.debug("Gathering workspace information");
+        const workspaces = vscode.workspace.workspaceFolders;
+        const activeEditor = vscode.window.activeTextEditor;
+
+        logger.debug(`----> Found ${workspaces?.length || 0} workspace folders, active editor: ${activeEditor?.document.fileName || "none"}`);
+
+        const workspaceInfo = {
+            workspaceFolders:
+                workspaces?.map(folder => ({
+                    name: folder.name,
+                    uri: folder.uri.fsPath,
+                    scheme: folder.uri.scheme,
+                })) || [],
+            activeFile: activeEditor
+                ? {
+                      fileName: activeEditor.document.fileName,
+                      languageId: activeEditor.document.languageId,
+                      isUntitled: activeEditor.document.isUntitled,
+                      isDirty: activeEditor.document.isDirty,
+                  }
+                : null,
+            workspaceName: vscode.workspace.name || "No workspace",
+            extensions: vscode.extensions.all
+                .filter(ext => ext.isActive)
+                .map(ext => ({
+                    id: ext.id,
+                    displayName: ext.packageJSON.displayName || ext.id,
+                    version: ext.packageJSON.version,
+                })),
+        };
+
+        vscode.workspace.findFiles("**/*.sln").then(slnResults => {
+            vscode.workspace.findFiles("**/*.code-workspace").then(wsResults => {
+                logger.debug(`Sending workspace info to webview: ${workspaceInfo.workspaceFolders.length} folders, ${workspaceInfo.extensions.length} active extensions`);
+
+                this._view && this._view.webview.postMessage({
+                    type: "workspaceInfo",
+                    data: {
+                        ...workspaceInfo,
+                        slnFiles: slnResults.map(uri => uri.fsPath),
+                        codeWorkspaceFiles: wsResults.map(uri => uri.fsPath),
+                        timestamp: Date.now(),
+                    },
+                });
+            });
+        });
+    }
+
+    private _getHtmlForWebview(webview: vscode.Webview) {
+        // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "dist", "webview.js"));
+
+        // Do the same for the stylesheet.
+        const styleResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "reset.css"));
+        const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css"));
+
+        // Use a nonce to only allow specific scripts to be run
+        const nonce = getNonce();
+
+        return `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' 'unsafe-eval'; font-src ${webview.cspSource};">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="${styleResetUri}" rel="stylesheet">
+                <link href="${styleVSCodeUri}" rel="stylesheet">
+                <title>Workspace Info</title>
+            </head>
+            <body>
+                <div id="root">
+                    <div style="padding: 20px; color: var(--vscode-foreground);">
+                        <h2>Loading React App...</h2>
+                        <p>If this persists, React may not be loading properly.</p>
+                    </div>
+                </div>
+                
+                <script nonce="${nonce}">
+                    // Set up the VS Code API for React to use
+                    window.vscode = acquireVsCodeApi();
+                    console.log('VS Code API acquired, loading React...');
+                    
+                    // Comprehensive process polyfill for webview
+                    if (typeof window.process === 'undefined') {
+                        console.log('Setting up process polyfill...');
+                        window.process = {
+                            env: {},
+                            version: 'v16.0.0',
+                            platform: 'browser',
+                            argv: [],
+                            cwd: function() { return '/'; },
+                            browser: true,
+                            nextTick: function(fn) { setTimeout(fn, 0); },
+                            emitWarning: function() {},
+                            exit: function() {},
+                            hrtime: function() { return [0, 0]; }
+                        };
+                    }
+                    
+                    // Also set global.process for compatibility
+                    if (typeof window.global === 'undefined') {
+                        window.global = window;
+                    }
+                    if (typeof global !== 'undefined' && typeof global.process === 'undefined') {
+                        global.process = window.process;
+                    }
+                    
+                    console.log('Process polyfill ready:', typeof window.process, window.process);
+                    
+                    // Error handling
+                    window.addEventListener('error', function(e) {
+                        console.error('Webview error:', e.error, e.filename, e.lineno);
+                        document.getElementById('root').innerHTML = 
+                            '<div style="padding: 20px; color: var(--vscode-errorForeground);"><h3>Error loading React:</h3><p>' + e.message + '</p></div>';
+                    });
+                    
+                    window.addEventListener('unhandledrejection', function(e) {
+                        console.error('Unhandled promise rejection:', e.reason);
+                    });
+                </script>
+                
+                <script nonce="${nonce}" src="${scriptUri}"></script>
+                
+                <script nonce="${nonce}">
+                    // Check if React loaded after a delay
+                    setTimeout(() => {
+                        const root = document.getElementById('root');
+                        if (root.innerHTML.includes('Loading React App')) {
+                            console.warn('React app may not have loaded properly');
+                            root.innerHTML = '<div style="padding: 20px; color: var(--vscode-foreground);"><h2>React Loading Issue</h2><p>The React app did not load. Check console for errors.</p></div>';
+                        } else {
+                            console.log('React app loaded successfully');
+                        }
+                    }, 3000);
+                </script>
+            </body>
+            </html>`;
+    }
+}
