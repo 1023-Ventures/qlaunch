@@ -213,9 +213,134 @@ const WorkspaceInfoPanel: React.FC = () => {
         );
     }
 
+    const activeExtensionsPanel = (
+        <div className="info-section">
+            <h3>Active Extensions ({workspaceInfo.extensions.length})</h3>
+            <div style={{ maxHeight: "150px", overflow: "auto" }}>
+                {workspaceInfo.extensions.slice(0, 5).map((ext, index) => (
+                    <div key={index} className="info-item">
+                        <div className="info-label">{ext.displayName}</div>
+                        <div className="info-value">v{ext.version}</div>
+                    </div>
+                ))}
+                {workspaceInfo.extensions.length > 5 && <p>... and {workspaceInfo.extensions.length - 5} more extensions</p>}
+            </div>
+        </div>
+    );
+
+    const activeFilePanel = (
+        <div className="info-section">
+            <h3>Active File</h3>
+            {workspaceInfo.activeFile ? (
+                <div className="info-item">
+                    <div className="info-label">File:</div>
+                    <div className="info-value">{workspaceInfo.activeFile.fileName}</div>
+                    <div className="info-label">Language:</div>
+                    <div className="info-value">{workspaceInfo.activeFile.languageId}</div>
+                    <div className="info-label">Status:</div>
+                    <div className="info-value">
+                        {workspaceInfo.activeFile.isUntitled ? "Untitled" : "Saved"}
+                        {workspaceInfo.activeFile.isDirty ? " (Modified)" : ""}
+                    </div>
+                </div>
+            ) : (
+                <p>No active file</p>
+            )}
+        </div>
+    );
+
+    const workspaceFoldersList = (
+        <div className="info-section">
+            <h3>Workspace Folders ({workspaceInfo.workspaceFolders.length})</h3>
+            {workspaceInfo.workspaceFolders.length === 0 ? (
+                <p>No workspace folders open</p>
+            ) : (
+                <ul>
+                    {workspaceInfo.workspaceFolders.map((folder, index) => (
+                        <li key={index} className="info-item">
+                            <div className="info-label">{folder.name}</div>
+                            <div className="info-value">{folder.uri}</div>
+                            <div className="info-value">Scheme: {folder.scheme}</div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+
+    const recentFileChangesSection = (
+        <div className="info-section">
+            <h3>Recent File Changes ({fileChanges.length})</h3>
+            {fileChanges.length === 0 ? (
+                <p>No recent file changes</p>
+            ) : (
+                <div style={{ maxHeight: "200px", overflow: "auto" }}>
+                    {fileChanges.map((change, index) => (
+                        <div key={index} className="info-item" style={{ fontSize: "12px", marginBottom: "5px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <span>{getChangeIcon(change.type)}</span>
+                                <span className="info-label">{change.type.toUpperCase()}</span>
+                                <span style={{ color: "var(--vscode-descriptionForeground)" }}>{formatTimestamp(change.timestamp)}</span>
+                            </div>
+                            <div className="info-value" style={{ fontSize: "11px", marginLeft: "24px" }}>
+                                {change.uri.length > 60 ? "..." + change.uri.slice(-60) : change.uri}
+                            </div>
+                            <div style={{ fontSize: "10px", color: "var(--vscode-descriptionForeground)", marginLeft: "24px" }}>Pattern: {change.pattern}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+    const fileWatcherConfig = showWatcherConfig && (
+        <div className="info-section border-t border-vscode-border pt-4">
+            <h3 className="text-lg font-semibold mb-3">File Watcher Configuration</h3>
+            <div className="flex gap-2 mb-4">
+                <input
+                    type="text"
+                    value={newPattern}
+                    onChange={e => setNewPattern(e.target.value)}
+                    placeholder="Enter file pattern (e.g., **/*.js)"
+                    className="px-3 py-2 bg-vscode-input border border-vscode-border rounded text-sm flex-1 max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onKeyPress={e => e.key === "Enter" && addWatchPattern()}
+                />
+                <button className="px-3 py-2 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors" onClick={addWatchPattern}>
+                    Add Pattern
+                </button>
+            </div>
+
+            <h4>Current Watch Patterns ({watchPatterns.length}):</h4>
+            {watchPatterns.length === 0 ? (
+                <p>No watch patterns configured</p>
+            ) : (
+                <ul>
+                    {watchPatterns.map((pattern, index) => (
+                        <li key={index} className="info-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <code style={{ background: "var(--vscode-textCodeBlock-background)", padding: "2px 6px", borderRadius: "3px" }}>{pattern}</code>
+                            <button
+                                onClick={() => removeWatchPattern(pattern)}
+                                style={{
+                                    background: "var(--vscode-errorButton-background)",
+                                    color: "var(--vscode-errorButton-foreground)",
+                                    border: "none",
+                                    padding: "2px 8px",
+                                    borderRadius: "3px",
+                                    cursor: "pointer",
+                                    fontSize: "12px",
+                                }}
+                            >
+                                Remove
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+
     return (
         <div className="workspace-info">
-            {/* Display quick launch buttons for workspaces, sln's, and .deploy */}
             <QuickLaunchList workspaceInfo={workspaceInfo} />
 
             <div className="info-section">
@@ -230,151 +355,6 @@ const WorkspaceInfoPanel: React.FC = () => {
                     <button className="px-3 py-1.5 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors" onClick={switchToExplorer}>
                         Switch to Explorer
                     </button>
-                </div>
-            </div>
-
-            {showWatcherConfig && (
-                <div className="info-section border-t border-vscode-border pt-4">
-                    <h3 className="text-lg font-semibold mb-3">File Watcher Configuration</h3>
-                    <div className="flex gap-2 mb-4">
-                        <input
-                            type="text"
-                            value={newPattern}
-                            onChange={e => setNewPattern(e.target.value)}
-                            placeholder="Enter file pattern (e.g., **/*.js)"
-                            className="px-3 py-2 bg-vscode-input border border-vscode-border rounded text-sm flex-1 max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            onKeyPress={e => e.key === "Enter" && addWatchPattern()}
-                        />
-                        <button className="px-3 py-2 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors" onClick={addWatchPattern}>
-                            Add Pattern
-                        </button>
-                    </div>
-
-                    <h4>Current Watch Patterns ({watchPatterns.length}):</h4>
-                    {watchPatterns.length === 0 ? (
-                        <p>No watch patterns configured</p>
-                    ) : (
-                        <ul>
-                            {watchPatterns.map((pattern, index) => (
-                                <li key={index} className="info-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <code style={{ background: "var(--vscode-textCodeBlock-background)", padding: "2px 6px", borderRadius: "3px" }}>{pattern}</code>
-                                    <button
-                                        onClick={() => removeWatchPattern(pattern)}
-                                        style={{
-                                            background: "var(--vscode-errorButton-background)",
-                                            color: "var(--vscode-errorButton-foreground)",
-                                            border: "none",
-                                            padding: "2px 8px",
-                                            borderRadius: "3px",
-                                            cursor: "pointer",
-                                            fontSize: "12px",
-                                        }}
-                                    >
-                                        Remove
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-            )}
-
-            <div>
-                <DemoFileTypeButton />
-                <div className="bg-amber-200">Workspace Info ----------</div>
-                {workspaceInfo.slnFiles.map(file => (
-                    <div key={file} className="info-item">
-                        <div className="info-label">SLN File:</div>
-                        <div className="info-value">{file}</div>
-                    </div>
-                ))}
-                {workspaceInfo.codeWorkspaceFiles.map(file => (
-                    <div key={file} className="info-item">
-                        <div className="info-label">Code Workspace File:</div>
-                        <div className="info-value">{file}</div>
-                    </div>
-                ))}
-                {workspaceInfo.deployFolders.map(folder => (
-                    <div key={folder} className="info-item">
-                        <div className="info-label">Deploy Folder:</div>
-                        <div className="info-value">{folder}</div>
-                    </div>
-                ))}
-                <div className="info-item">
-                    <div className="info-label">Last Updated:</div>
-                    <div className="info-value">{formatTimestamp(workspaceInfo.timestamp)}</div>
-                </div>
-            </div>
-
-            <div className="info-section">
-                <h3>Recent File Changes ({fileChanges.length})</h3>
-                {fileChanges.length === 0 ? (
-                    <p>No recent file changes</p>
-                ) : (
-                    <div style={{ maxHeight: "200px", overflow: "auto" }}>
-                        {fileChanges.map((change, index) => (
-                            <div key={index} className="info-item" style={{ fontSize: "12px", marginBottom: "5px" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <span>{getChangeIcon(change.type)}</span>
-                                    <span className="info-label">{change.type.toUpperCase()}</span>
-                                    <span style={{ color: "var(--vscode-descriptionForeground)" }}>{formatTimestamp(change.timestamp)}</span>
-                                </div>
-                                <div className="info-value" style={{ fontSize: "11px", marginLeft: "24px" }}>
-                                    {change.uri.length > 60 ? "..." + change.uri.slice(-60) : change.uri}
-                                </div>
-                                <div style={{ fontSize: "10px", color: "var(--vscode-descriptionForeground)", marginLeft: "24px" }}>Pattern: {change.pattern}</div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            <div className="info-section">
-                <h3>Workspace Folders ({workspaceInfo.workspaceFolders.length})</h3>
-                {workspaceInfo.workspaceFolders.length === 0 ? (
-                    <p>No workspace folders open</p>
-                ) : (
-                    <ul>
-                        {workspaceInfo.workspaceFolders.map((folder, index) => (
-                            <li key={index} className="info-item">
-                                <div className="info-label">{folder.name}</div>
-                                <div className="info-value">{folder.uri}</div>
-                                <div className="info-value">Scheme: {folder.scheme}</div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-
-            <div className="info-section">
-                <h3>Active File</h3>
-                {workspaceInfo.activeFile ? (
-                    <div className="info-item">
-                        <div className="info-label">File:</div>
-                        <div className="info-value">{workspaceInfo.activeFile.fileName}</div>
-                        <div className="info-label">Language:</div>
-                        <div className="info-value">{workspaceInfo.activeFile.languageId}</div>
-                        <div className="info-label">Status:</div>
-                        <div className="info-value">
-                            {workspaceInfo.activeFile.isUntitled ? "Untitled" : "Saved"}
-                            {workspaceInfo.activeFile.isDirty ? " (Modified)" : ""}
-                        </div>
-                    </div>
-                ) : (
-                    <p>No active file</p>
-                )}
-            </div>
-
-            <div className="info-section">
-                <h3>Active Extensions ({workspaceInfo.extensions.length})</h3>
-                <div style={{ maxHeight: "150px", overflow: "auto" }}>
-                    {workspaceInfo.extensions.slice(0, 5).map((ext, index) => (
-                        <div key={index} className="info-item">
-                            <div className="info-label">{ext.displayName}</div>
-                            <div className="info-value">v{ext.version}</div>
-                        </div>
-                    ))}
-                    {workspaceInfo.extensions.length > 5 && <p>... and {workspaceInfo.extensions.length - 5} more extensions</p>}
                 </div>
             </div>
         </div>

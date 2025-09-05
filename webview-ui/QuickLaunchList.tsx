@@ -36,17 +36,32 @@ export function QuickLaunchList({ workspaceInfo }: Props) {
         }
     };
 
+    const openTerminalAt = (folderPath: string) => {
+        if (window.vscode) {
+            console.log('Opening terminal at folder:', folderPath);
+            window.vscode.postMessage({
+                type: 'openTerminalAt',
+                folderPath: folderPath
+            });
+        } else {
+            console.error('VS Code API not available');
+        }
+    };
+
     const handleFileClick = (filePath: string, event: React.MouseEvent) => {
         // Different actions based on modifier keys
         if (event.metaKey || event.ctrlKey) {
             // Cmd/Ctrl + Click: Open in VS Code
-            openFileWithOS(filePath, "vscode");
+            openFileWithOS(filePath, 'vscode');
         } else if (event.altKey) {
             // Alt + Click: Open containing folder
-            openFileWithOS(filePath, "explorer");
+            openFileWithOS(filePath, 'explorer');
+        } else if (event.shiftKey) {
+            // Shift + Click: Open terminal at file location
+            openFileWithOS(filePath, 'vscode-terminal');
         } else {
             // Normal click: Open with OS default application
-            openFileWithOS(filePath, "default");
+            openFileWithOS(filePath, 'default');
         }
     };
 
@@ -74,22 +89,24 @@ export function QuickLaunchList({ workspaceInfo }: Props) {
                                     <button
                                         onClick={e => handleFileClick(file, e)}
                                         className="mb-2 p-3 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors cursor-pointer text-left w-full flex flex-col gap-1"
-                                        title={`Click: Open with OS default | Cmd/Ctrl+Click: Open in VS Code | Alt+Click: Open folder`}
+                            title={`Click: Open with OS default | Cmd/Ctrl+Click: Open in VS Code | Alt+Click: Open folder | Shift+Click: Open terminal`}
                                     >
                                         <div className="font-semibold">{fileName}</div>
                                         <div className="text-xs opacity-60">{folderName}</div>
-                                        <div className="text-xs opacity-50 mt-1 border-t border-white/20 pt-1">💡 Click: OS default | ⌘+Click: VS Code | ⌥+Click: Folder</div>
+                            <div className="text-xs opacity-50 mt-1 border-t border-white/20 pt-1">
+                                💡 Click: OS default | ⌘+Click: VS Code | ⌥+Click: Folder | ⇧+Click: Terminal
+                            </div>
                                     </button>
                                 )}
                                 {deployFolder && (
                                     <button
-                                        onClick={e => handleFileClick(file, e)}
+                                        onClick={e => openTerminalAt(deployFolder)}
                                         className="mb-2 p-3 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors cursor-pointer text-left w-full flex flex-col gap-1"
-                                        title={`Click: Open with OS default | Cmd/Ctrl+Click: Open in VS Code | Alt+Click: Open folder`}
+                                        // title={`Click: Open with OS default | Cmd/Ctrl+Click: Open in VS Code | Alt+Click: Open folder | Shift+Click: Open terminal`}
                                     >
                                         <div className="font-semibold">{deployFolder}</div>
                                         <div className="text-xs opacity-60">{folderName}</div>
-                                        <div className="text-xs opacity-50 mt-1 border-t border-white/20 pt-1">💡 Click: OS default | ⌘+Click: VS Code | ⌥+Click: Folder</div>
+                                        <div className="text-xs opacity-50 mt-1 border-t border-white/20 pt-1">💡 Click: OS default | ⌘+Click: VS Code | ⌥+Click: Folder | ⇧+Click: Terminal</div>
                                     </button>
                                 )}
                             </div>
@@ -97,11 +114,11 @@ export function QuickLaunchList({ workspaceInfo }: Props) {
                                 <button
                                     onClick={e => handleFileClick(slnFile, e)}
                                     className="mb-2 p-3 bg-vscode-button text-white rounded text-sm hover:bg-vscode-button-hover transition-colors cursor-pointer text-left w-full flex flex-col gap-1"
-                                    title={`Click: Open with OS default | Cmd/Ctrl+Click: Open in VS Code | Alt+Click: Open folder`}
+                                    title={`Click: Open with OS default | Cmd/Ctrl+Click: Open in VS Code | Alt+Click: Open folder | Shift+Click: Open terminal`}
                                 >
                                     {slnFile && <div className="text-xs opacity-80">Solution: {path.basename(slnFile)}</div>}
                                     <div className="text-xs opacity-60">{folderName}</div>
-                                    <div className="text-xs opacity-50 mt-1 border-t border-white/20 pt-1">💡 Click: OS default | ⌘+Click: VS Code | ⌥+Click: Folder</div>
+                                    <div className="text-xs opacity-50 mt-1 border-t border-white/20 pt-1">💡 Click: OS default | ⌘+Click: VS Code | ⌥+Click: Folder | ⇧+Click: Terminal</div>
                                 </button>
                             )}
                         </div>

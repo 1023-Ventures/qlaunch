@@ -239,6 +239,11 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
                         this._openWithOS(data.filePath, data.openMethod || 'default');
                     }
                     break;
+                case "openTerminalAt":
+                    if (data.folderPath) {
+                        this._openTerminalAt(data.folderPath);
+                    }
+                    break;
             }
         });
 
@@ -300,6 +305,17 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
                     logger.debug(`Successfully opened folder containing ${filePath}`);
                     break;
                     
+                case 'vscode-terminal':
+                    // Open a new VS Code terminal at the file's directory
+                    const terminalPath = require('path').dirname(filePath);
+                    const terminal = vscode.window.createTerminal({
+                        name: `Terminal - ${require('path').basename(terminalPath)}`,
+                        cwd: terminalPath
+                    });
+                    terminal.show();
+                    logger.debug(`Successfully opened terminal at ${terminalPath}`);
+                    break;
+                    
                 default:
                     // Default to OS default application
                     await vscode.env.openExternal(fileUri);
@@ -312,6 +328,27 @@ export class WorkspaceInfoProvider implements vscode.WebviewViewProvider {
             // Show error message to user
             vscode.window.showErrorMessage(
                 `Failed to open file with ${openMethod} method: ${filePath}. ${error instanceof Error ? error.message : 'Unknown error'}`
+            );
+        }
+    }
+
+    private _openTerminalAt(folderPath: string) {
+        try {
+            logger.info(`Opening terminal at: ${folderPath}`);
+            
+            const terminal = vscode.window.createTerminal({
+                name: `Terminal - ${require('path').basename(folderPath)}`,
+                cwd: folderPath
+            });
+            terminal.show();
+            
+            logger.debug(`Successfully opened terminal at ${folderPath}`);
+        } catch (error) {
+            logger.error(`Failed to open terminal at: ${folderPath}`, error);
+            
+            // Show error message to user
+            vscode.window.showErrorMessage(
+                `Failed to open terminal at: ${folderPath}. ${error instanceof Error ? error.message : 'Unknown error'}`
             );
         }
     }
