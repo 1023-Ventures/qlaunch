@@ -4,8 +4,10 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "npm",
-			"script": "compile",
+			"label": "yarn compile",
+			"type": "shell",
+			"command": "yarn",
+			"args": ["compile"],
 			"group": {
 				"kind": "build",
 				"isDefault": true
@@ -21,8 +23,10 @@
 			"problemMatcher": ["$tsc"]
 		},
 		{
-			"type": "npm",
-			"script": "watch",
+			"label": "yarn watch",
+			"type": "shell",
+			"command": "yarn",
+			"args": ["watch"],
 			"isBackground": true,
 			"presentation": {
 				"reveal": "never",
@@ -39,8 +43,10 @@
 			}
 		},
 		{
-			"type": "npm",
-			"script": "watch:extension",
+			"label": "yarn watch:extension",
+			"type": "shell",
+			"command": "yarn",
+			"args": ["watch:extension"],
 			"isBackground": true,
 			"presentation": {
 				"reveal": "never",
@@ -57,8 +63,10 @@
 			}
 		},
 		{
-			"type": "npm",
-			"script": "watch:webview",
+			"label": "yarn watch:webview",
+			"type": "shell",
+			"command": "yarn",
+			"args": ["watch:webview"],
 			"isBackground": true,
 			"presentation": {
 				"reveal": "never",
@@ -75,8 +83,10 @@
 			}
 		},
 		{
-			"type": "npm",
-			"script": "package",
+			"label": "yarn package",
+			"type": "shell",
+			"command": "yarn",
+			"args": ["package"],
 			"group": "build",
 			"presentation": {
 				"echo": true,
@@ -89,8 +99,10 @@
 			"problemMatcher": ["$tsc"]
 		},
 		{
-			"type": "npm",
-			"script": "watch-tests",
+			"label": "yarn watch-tests",
+			"type": "shell",
+			"command": "yarn",
+			"args": ["watch-tests"],
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"presentation": {
@@ -102,8 +114,8 @@
 		{
 			"label": "tasks: watch-all",
 			"dependsOn": [
-				"npm: watch",
-				"npm: watch-tests"
+				"yarn watch",
+				"yarn watch-tests"
 			],
 			"problemMatcher": []
 		}
