@@ -16,6 +16,17 @@
 				"${workspaceFolder}/dist/**/*.js"
 			],
 			"preLaunchTask": "${defaultBuildTask}"
+		},
+		{
+			"name": "Debug TypeScript",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/extension.ts",
+			"runtimeExecutable": "npx",
+			"runtimeArgs": ["tsx"],
+			"console": "integratedTerminal",
+			"skipFiles": ["<node_internals>/**"],
+			"resolveSourceMapLocations": ["${workspaceFolder}/**", "!**/node_modules/**"]
 		}
 	]
 }

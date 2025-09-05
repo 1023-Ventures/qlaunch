@@ -5,17 +5,88 @@
 	"tasks": [
 		{
 			"type": "npm",
+			"script": "compile",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "silent",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": ["$tsc"]
+		},
+		{
+			"type": "npm",
 			"script": "watch",
-			"problemMatcher": "$ts-webpack-watch",
 			"isBackground": true,
 			"presentation": {
 				"reveal": "never",
 				"group": "watchers"
 			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
+			"group": "build",
+			"problemMatcher": {
+				"base": "$tsc-watch",
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^\\s*(?:vite v[\\d\\.]+\\s+)?building",
+					"endsPattern": "built in"
+				}
 			}
+		},
+		{
+			"type": "npm",
+			"script": "watch:extension",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never",
+				"group": "watchers"
+			},
+			"group": "build",
+			"problemMatcher": {
+				"base": "$tsc-watch",
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^\\s*vite v[\\d\\.]+\\s+building",
+					"endsPattern": "built in"
+				}
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watch:webview",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never",
+				"group": "watchers"
+			},
+			"group": "build",
+			"problemMatcher": {
+				"base": "$tsc-watch",
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^\\s*vite v[\\d\\.]+\\s+building",
+					"endsPattern": "built in"
+				}
+			}
+		},
+		{
+			"type": "npm",
+			"script": "package",
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "silent",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": ["$tsc"]
 		},
 		{
 			"type": "npm",
@@ -29,7 +100,7 @@
 			"group": "build"
 		},
 		{
-			"label": "tasks: watch-tests",
+			"label": "tasks: watch-all",
 			"dependsOn": [
 				"npm: watch",
 				"npm: watch-tests"

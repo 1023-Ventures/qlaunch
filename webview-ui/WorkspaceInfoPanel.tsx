@@ -285,7 +285,7 @@ const WorkspaceInfoPanel: React.FC = () => {
 
             <div>
                 <DemoFileTypeButton/>
-                <h3>Workspace Info</h3>
+                <h3>Workspace Info ----------</h3>
                 {workspaceInfo.slnFiles.map(file => (
                     <div key={file} className="info-item">
                         <div className="info-label">SLN File:</div>
